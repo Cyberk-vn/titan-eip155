@@ -20,6 +20,22 @@ export type RpcProvidersByChainId = Record<
 const WALLETCONNECT_RPC_BASE_URL = `https://rpc.walletconnect.com/v1?projectId=${process.env.NEXT_PUBLIC_PROJECT_ID}`;
 
 export const rpcProvidersByChainId: RpcProvidersByChainId = {
+  18888: {
+    name: "Titan (TKX) Mainnet",
+    baseURL: "https://titan-json-rpc.titanlab.io",
+    token: {
+      name: "Titan",
+      symbol: "TKX",
+    },
+  },
+  18889: {
+    name: "Titan (TKX) Testnet",
+    baseURL: "https://titan-testnet-json-rpc.titanlab.io",
+    token: {
+      name: "Titan",
+      symbol: "TKX",
+    },
+  },
   1: {
     name: "Ethereum Mainnet",
     baseURL: WALLETCONNECT_RPC_BASE_URL + "&chainId=eip155:1",
