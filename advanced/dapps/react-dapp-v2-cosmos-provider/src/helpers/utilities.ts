@@ -5,6 +5,7 @@ import * as ethUtil from "ethereumjs-util";
 
 import { eip1271 } from "./eip1271";
 import { DEFAULT_CHAINS } from "../constants";
+import { keccak256 } from "ethers/lib/utils";
 
 export function capitalize(string: string): string {
   return string

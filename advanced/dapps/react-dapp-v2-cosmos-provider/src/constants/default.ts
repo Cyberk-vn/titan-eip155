@@ -1,10 +1,12 @@
 export const DEFAULT_MAIN_CHAINS = [
   // mainnets
   "cosmos:cosmoshub-4",
+  "cosmos:titan_18889-1",
 ];
 
 export const DEFAULT_TEST_CHAINS = [
   // testnets
+  "cosmos:titan_18889-1",
 ];
 
 export const DEFAULT_CHAINS = [...DEFAULT_MAIN_CHAINS, ...DEFAULT_TEST_CHAINS];

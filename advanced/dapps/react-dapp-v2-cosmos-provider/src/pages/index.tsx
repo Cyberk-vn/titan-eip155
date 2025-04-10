@@ -1,11 +1,6 @@
 import React, { useState } from "react";
 import { RELAYER_SDK_VERSION as version } from "@walletconnect/core";
-import {
-  formatDirectSignDoc,
-  stringifySignDocValues,
-  verifyAminoSignature,
-  verifyDirectSignature,
-} from "cosmos-wallet";
+import { formatDirectSignDoc, stringifySignDocValues, verifyDirectSignature } from "cosmos-wallet";
 
 import Banner from "./../components/Banner";
 import Blockchain from "./../components/Blockchain";
@@ -25,6 +20,7 @@ import {
   SLayout,
 } from "./../components/app";
 import { useWalletConnectClient } from "./../contexts/ClientContext";
+import { verifyAminoSignature } from "../helpers/amino-verifier";
 
 interface IFormattedRpcResponse {
   method?: string;
@@ -177,9 +173,10 @@ export default function App() {
       method: "cosmos_signAmino",
       params,
     });
-
-    const valid = await verifyAminoSignature(address, result.signature, signDoc);
-
+    console.log("=============testSignAmino", result);
+    const { signature } = result.signature as any;
+    const valid = await verifyAminoSignature(address, signature, signDoc);
+    console.log("=============valid", valid);
     return {
       method: "cosmos_signAmino",
       address,
@@ -195,7 +192,9 @@ export default function App() {
         openRequestModal();
         try {
           setIsRpcRequestPending(true);
+          console.log("=============account", account);
           const result = await rpcRequest(account);
+          console.log("=============result", result);
           setRpcResult(result);
         } catch (error) {
           console.error("RPC request failed:", error);
