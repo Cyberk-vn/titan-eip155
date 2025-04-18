@@ -21,6 +21,14 @@ import {
 } from "./../components/app";
 import { useWalletConnectClient } from "./../contexts/ClientContext";
 import { verifyAminoSignature } from "../helpers/amino-verifier";
+import { AminoMsg, StdSignDoc } from "@cosmjs/amino";
+import { AuthInfo, Fee, TxBody, TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
+import { MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
+import { PubKey } from "cosmjs-types/cosmos/crypto/secp256k1/keys";
+import { SignMode } from "cosmjs-types/cosmos/tx/signing/v1beta1/signing";
+import { fromBase64 } from "@cosmjs/encoding";
+import axios from "axios";
+import { coins } from "@cosmjs/amino";
 
 interface IFormattedRpcResponse {
   method?: string;
@@ -149,22 +157,45 @@ export default function App() {
     if (!cosmosProvider) {
       throw new Error("cosmosProvider not connected");
     }
-
-    // test amino sign doc
-    const signDoc = {
-      msgs: [],
-      fee: { amount: [], gas: "23" },
-      chain_id: "foochain",
-      memo: "hello, world",
-      account_number: "7",
-      sequence: "54",
-    };
+    console.log("=============testSignAmino", account);
 
     const address = account.split(":").pop();
 
     if (!address) {
       throw new Error(`Could not derive address from account: ${account}`);
     }
+
+    const accountRes = await axios.get(
+      `https://titan-testnet-lcd.titanlab.io/cosmos/auth/v1beta1/accounts/${address}`,
+    );
+    console.log("=============accountRes", accountRes);
+
+    const sendMsg: AminoMsg = {
+      type: "cosmos-sdk/MsgSend",
+      value: {
+        from_address: address,
+        to_address: address,
+        amount: [{ denom: "atkx", amount: "100000000000000000" }],
+      },
+    };
+
+    // test amino sign doc
+    const signDoc: StdSignDoc = {
+      chain_id: "titan_18889-1",
+      account_number: accountRes.data.account.base_account.account_number,
+      sequence: accountRes.data.account.base_account.sequence,
+      fee: {
+        amount: [
+          {
+            denom: "atkx",
+            amount: "13749600000000000",
+          },
+        ],
+        gas: "127496",
+      },
+      msgs: [sendMsg],
+      memo: "test",
+    };
 
     // cosmos_signAmino params
     const params = { signerAddress: address, signDoc };
@@ -174,9 +205,64 @@ export default function App() {
       params,
     });
     console.log("=============testSignAmino", result);
-    const { signature } = result.signature as any;
+    const { signature, pub_key } = result.signature as any;
     const valid = await verifyAminoSignature(address, signature, signDoc);
-    console.log("=============valid", valid);
+    console.log("=============valid", valid, pub_key);
+
+    const bodyByte = TxBody.encode(
+      TxBody.fromPartial({
+        messages: [
+          {
+            typeUrl: "/cosmos.bank.v1beta1.MsgSend",
+            value: MsgSend.encode({
+              fromAddress: address,
+              toAddress: address,
+              amount: [{ denom: "atkx", amount: "100000000000000000" }],
+            }).finish(),
+          },
+        ],
+        memo: "test",
+      }),
+    ).finish();
+    const authInfoBytes = AuthInfo.encode({
+      signerInfos: [
+        {
+          publicKey: {
+            typeUrl: "/ethermint.crypto.v1.ethsecp256k1.PubKey",
+            value: PubKey.encode({
+              key: fromBase64(pub_key.value.key),
+              // key: pub_key.value.key,
+            }).finish(),
+          },
+          modeInfo: {
+            single: {
+              mode: SignMode.SIGN_MODE_LEGACY_AMINO_JSON,
+            },
+          },
+          sequence: BigInt(accountRes.data.account.base_account.sequence),
+        },
+      ],
+      fee: Fee.fromPartial({
+        amount: [...signDoc.fee.amount],
+        gasLimit: BigInt("127496"),
+      }),
+    }).finish();
+
+    const tx = TxRaw.encode({
+      bodyBytes: bodyByte,
+      authInfoBytes: authInfoBytes,
+      signatures: [fromBase64(signature)],
+    }).finish();
+
+    console.log("=============tx", tx);
+    const res = await axios.post(
+      `https://titan-testnet-lcd.titanlab.io/cosmos/tx/v1beta1/txs`,
+      JSON.stringify({
+        tx_bytes: Buffer.from(tx).toString("base64"),
+        mode: "BROADCAST_MODE_SYNC",
+      }),
+    );
+    console.log("=============res", res);
     return {
       method: "cosmos_signAmino",
       address,
